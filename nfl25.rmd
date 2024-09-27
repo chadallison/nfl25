@@ -1,0 +1,470 @@
+---
+output: github_document
+knit: (function(input, ...) { rmarkdown::render(input, output_file = "README.md", envir = globalenv()) })
+---
+
+### Contents
+
+- [Offensive and Defensive PPG]
+- [Offensive and Defensive YPG]
+- [Offensive and Defensive EPA]
+
+___
+
+```{r message = F, warning = F, include = F}
+library(tidyverse)
+library(tidymodels)
+library(tvthemes)
+library(janitor)
+library(zoo)
+library(nflfastR)
+library(patchwork)
+
+theme_custom = theme_avatar() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, size = 9, vjust = 2.5, face = "italic"),
+        plot.caption = element_text(face = "italic"),
+        panel.grid.major = element_line(linewidth = 0.5, colour = "#DFDAD1"),
+        panel.grid.minor = element_line(linewidth = 0.5, colour = "#DFDAD1"))
+
+theme_set(theme_custom)
+
+# writing then reading removes nflfastR messages
+write_csv(load_pbp(season = 2024), "data/season_pbp.csv")
+season_pbp = read_csv("data/season_pbp.csv", show_col_types = F)
+
+end_games = season_pbp |>
+  filter(desc == "END GAME" & season_type == "REG") |>
+  select(game_id, date = game_date, week, away_team, away_score = total_away_score, home_score = total_home_score, home_team) |>
+  mutate(win_team = case_when(home_score > away_score ~ home_team,
+                              home_score < away_score ~ away_team,
+                              home_score == away_score ~ "Tie"),
+         win_score = case_when(home_score > away_score ~ home_score,
+                               home_score < away_score ~ away_score,
+                               home_score == away_score ~ home_score),
+         lose_team = case_when(home_score > away_score ~ away_team,
+                               home_score < away_score ~ home_team,
+                               home_score == away_score ~ "Tie"),
+         lose_score = case_when(home_score > away_score ~ away_score,
+                                home_score < away_score ~ home_score,
+                                home_score == away_score ~ away_score),
+         game_margin = win_score - lose_score,
+         total_points = win_score + lose_score)
+
+all_teams = sort(unique(c(unique(end_games$home_team), unique(end_games$away_team))))
+all_szn_dates = sort(unique(end_games$date))
+
+team_hex = teams_colors_logos |>
+  select(team = team_abbr, team_color) |>
+  filter(team %in% all_teams) |>
+  pull(team_color)
+```
+
+### Offensive and Defensive PPG
+
+```{r echo = F}
+get_team_off_ppg = function(tm) {
+  home = end_games |> filter(home_team == tm) |> pull(home_score)
+  away = end_games |> filter(away_team == tm) |> pull(away_score)
+  return(round(mean(c(home, away)), 2))
+}
+
+get_team_def_ppg = function(tm) {
+  home = end_games |> filter(home_team == tm) |> pull(away_score)
+  away = end_games |> filter(away_team == tm) |> pull(home_score)
+  return(round(mean(c(home, away)), 2))
+}
+
+team_ppg = data.frame(team = all_teams) |>
+  mutate(off_ppg = sapply(team, get_team_off_ppg),
+         def_ppg = sapply(team, get_team_def_ppg))
+
+team_ppg |>
+  ggplot(aes(off_ppg, def_ppg)) +
+  geom_point(aes(col = team), shape = "square", size = 4, show.legend = F) +
+  geom_vline(xintercept = mean(team_ppg$off_ppg), linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(team_ppg$def_ppg), linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = team_hex) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3) +
+  scale_x_continuous(breaks = seq(0, 50, by = 5)) +
+  scale_y_continuous(breaks = seq(0, 50, by = 5)) +
+  labs(x = "Offensive PPG",
+       y = "Defensive PPG",
+       title = "Team offensive and defensive PPG")
+```
+
+___
+
+### Offensive and Defensive YPG
+
+```{r echo = F}
+off_yds = season_pbp |>
+  filter(!is.na(posteam)) |>
+  group_by(team = posteam) |>
+  summarise(off_yds = sum(yards_gained, na.rm = T)) |>
+  arrange(desc(off_yds))
+
+def_yds = season_pbp |>
+  filter(!is.na(defteam)) |>
+  group_by(team = defteam) |>
+  summarise(def_yds = sum(yards_gained, na.rm = T)) |>
+  arrange(def_yds)
+
+# make reference table for games played
+team_games_played = end_games |>
+  count(home_team) |>
+  setNames(c("team", "home")) |>
+  full_join(end_games |>
+  count(away_team) |>
+  setNames(c("team", "away")), by = "team") |>
+  transmute(team, gp = home + away)
+
+team_ypg = off_yds |>
+  inner_join(def_yds, by = "team") |>
+  inner_join(team_games_played, by = "team") |>
+  transmute(team,
+            off_ypg = round(off_yds / gp, 2),
+            def_ypg = round(def_yds / gp, 2))
+
+team_ypg |>
+  ggplot(aes(off_ypg, def_ypg)) +
+  geom_point(aes(col = team), shape = "square", size = 4, show.legend = F) +
+  geom_vline(xintercept = mean(team_ypg$off_ypg), linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(team_ypg$def_ypg), linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = team_hex) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3) +
+  scale_x_continuous(breaks = seq(0, 500, by = 25)) +
+  scale_y_continuous(breaks = seq(0, 500, by = 25)) +
+  labs(x = "Offensive YPG",
+       y = "Defensive YPG",
+       title = "Scatterplot of offensive and defensive YPG")
+```
+
+___
+
+### Offensive and Defensive EPA
+
+```{r echo = F}
+off_epa = season_pbp |>
+  filter(!is.na(posteam)) |>
+  group_by(team = posteam) |>
+  summarise(avg_off_epa = round(mean(epa, na.rm = T), 4)) |>
+  arrange(desc(avg_off_epa))
+
+def_epa = season_pbp |>
+  filter(!is.na(defteam)) |>
+  group_by(team = defteam) |>
+  summarise(avg_def_epa = round(mean(epa, na.rm = T), 4)) |>
+  arrange(desc(avg_def_epa))
+
+team_epa = inner_join(off_epa, def_epa, by = "team")
+
+team_epa |>
+  ggplot(aes(avg_off_epa, avg_def_epa)) +
+  geom_point(aes(col = team), shape = "square", size = 4, show.legend = F) +
+  geom_vline(xintercept = mean(team_epa$avg_off_epa), linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(team_epa$avg_def_epa), linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = team_hex) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3) +
+  scale_x_continuous(breaks = seq(-0.5, 0.5, by = 0.05)) +
+  scale_y_continuous(breaks = seq(-0.5, 0.5, by = 0.05)) +
+  labs(x = "Avg. Offensive EPA",
+       y = "Avg. Defensive EPA",
+       title = "Scatterplot of avg. offensive and defensive EPA")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r message = F, warning = F}
+team_epa_classes = team_epa |>
+  transmute(team,
+            class = case_when(avg_off_epa >= 0 & avg_def_epa < 0 ~ "Good Offense, Good Defense",
+                           avg_off_epa >= 0 & avg_def_epa >= 0 ~ "Good Offense, Bad Defense",
+                           avg_off_epa < 0 & avg_def_epa >= 0 ~ "Bad Offense, Bad Defense",
+                           avg_off_epa < 0 & avg_def_epa < 0 ~ "Bad Offense, Good Defense"))
+
+descs = nflfastR::fast_scraper_schedules(season = 2024) |>
+  filter(week >= max(end_games$week)) |>
+  slice_min(week, n = 1, with_ties = T) |>
+  inner_join(team_epa_classes, by = c("home_team" = "team")) |>
+  rename(home_class = class) |>
+  inner_join(team_epa_classes, by = c("away_team" = "team")) |>
+  rename(away_class = class) |>
+  mutate(desc = as.character(glue::glue("{home_team} vs. {away_team}: {home_class} vs. {away_class}"))) |>
+  pull(desc)
+
+for (desc in descs) {
+  print(desc)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r message = F, warning = F}
+link = "https://ftnfantasy.com/dvoa/nfl/team-total-dvoa"
+
+dvoa = read_csv("data/team_total_dvoa.csv", show_col_types = F) |>
+  clean_names() |>
+  distinct(team, off_dvoa, def_dvoa)
+
+dvoa |>
+  ggplot(aes(off_dvoa, def_dvoa)) +
+  geom_point(aes(col = team), shape = "square", size = 4, show.legend = F) +
+  geom_vline(xintercept = mean(dvoa$off_dvoa), linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(dvoa$def_dvoa), linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = team_hex) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3) +
+  scale_x_continuous(breaks = seq(-50, 50, by = 5)) +
+  scale_y_continuous(breaks = seq(-50, 50, by = 5)) +
+  labs(x = "Offensive DVOA",
+       y = "Defensive DVOA",
+       title = "Scatterplot of offensive and defensive DVOA")
+```
+
+
+
+```{r}
+off_pass_rush = season_pbp |>
+  filter(!is.na(posteam) & play_type %in% c("pass", "run")) |>
+  group_by(posteam, play_type) |>
+  summarise(avg_epa = mean(epa, na.rm = T),
+            .groups = "drop") |>
+  pivot_wider(id_cols = "posteam", names_from = "play_type", values_from = "avg_epa") |>
+  setNames(c("team", "avg_off_pass_epa", "avg_off_run_epa"))
+
+def_pass_rush = season_pbp |>
+  filter(!is.na(defteam) & play_type %in% c("pass", "run")) |>
+  group_by(defteam, play_type) |>
+  summarise(avg_epa = mean(epa, na.rm = T),
+            .groups = "drop") |>
+  pivot_wider(id_cols = "defteam", names_from = "play_type", values_from = "avg_epa") |>
+  setNames(c("team", "avg_def_pass_epa", "avg_def_run_epa"))
+
+team_off_def_pass_rush_epa = inner_join(off_pass_rush, def_pass_rush, by = "team")
+
+total_with_epa = end_games |>
+  transmute(home_team, away_team, total_score = home_score + away_score) |>
+  inner_join(team_off_def_pass_rush_epa, by = c("home_team" = "team")) |>
+  setNames(c("home_team", "away_team", "total_score",
+             "home_avg_off_pass_epa", "home_avg_off_run_epa", "home_avg_def_pass_epa", "home_avg_def_run_epa")) |>
+  inner_join(team_off_def_pass_rush_epa, by = c("away_team" = "team")) |>
+  setNames(c("home_team", "away_team", "total_score",
+             "home_avg_off_pass_epa", "home_avg_off_run_epa", "home_avg_def_pass_epa", "home_avg_def_run_epa",
+             "away_avg_off_pass_epa", "away_avg_off_run_epa", "away_avg_def_pass_epa", "away_avg_def_run_epa")) |>
+  select(-c(home_team, away_team))
+
+total_mod = lm(total_score ~ ., data = total_with_epa)
+```
+
+
+```{r}
+off_week_epa = season_pbp |>
+  filter(!is.na(posteam)) |>
+  group_by(team = posteam, week) |>
+  summarise(off_epa = mean(epa, na.rm = T),
+            .groups = "drop")
+
+def_week_epa = season_pbp |>
+  filter(!is.na(defteam)) |>
+  group_by(team = defteam, week) |>
+  summarise(def_epa = mean(epa, na.rm = T),
+            .groups = "drop")
+
+team_weekly_epa = inner_join(off_week_epa, def_week_epa, by = c("team", "week"))
+
+team_epa
+```
+
+
+
+
+```{r message = F, warning = F}
+end_npr = end_games |>
+  inner_join(team_ppg, by = c("home_team" = "team")) |>
+  rename(home_off_ppg = off_ppg, home_def_ppg = def_ppg) |>
+  inner_join(team_ppg, by = c("away_team" = "team")) |>
+  rename(away_off_ppg = off_ppg, away_def_ppg = def_ppg) |>
+  mutate(home_exp = (home_off_ppg + away_def_ppg) / 2,
+         away_exp = (away_off_ppg + home_def_ppg) / 2,
+         home_off_npr = home_score - home_exp,
+         home_def_npr = away_exp - away_score,
+         away_off_npr = away_score - away_exp,
+         away_def_npr = home_exp - home_score)
+
+get_team_off_npr = function(tm) {
+  home = end_npr |> filter(home_team == tm) |> pull(home_off_npr)
+  away = end_npr |> filter(away_team == tm) |> pull(away_off_npr)
+  return(round(mean(c(home, away)), 3))
+}
+
+get_team_def_npr = function(tm) {
+  home = end_npr |> filter(home_team == tm) |> pull(home_def_npr)
+  away = end_npr |> filter(away_team == tm) |> pull(away_def_npr)
+  return(round(mean(c(home, away)), 3))
+}
+
+team_npr = data.frame(team = all_teams) |>
+  mutate(off_npr = sapply(team, get_team_off_npr),
+         def_npr = sapply(team, get_team_def_npr),
+         npr = off_npr + def_npr,
+         npr_rank = rank(-npr),
+         team_npr = as.character(glue::glue("{team} ({npr_rank})")))
+
+team_npr |>
+  mutate(pos_lab = ifelse(npr >= 0, round(npr, 2), ""),
+         neg_lab = ifelse(npr < 0, round(npr, 2), "")) |>
+  ggplot(aes(reorder(team_npr, npr), npr)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  geom_text(aes(label = pos_lab), size = 3, hjust = -0.25) +
+  geom_text(aes(label = neg_lab), size = 3, hjust = 1.25) +
+  scale_fill_manual(values = team_hex) +
+  coord_flip(ylim = c(min(team_npr$npr) * 1.05, max(team_npr$npr) * 1.05)) +
+  labs(x = NULL,
+       y = "Total NPR",
+       title = "2024 NPR Standings") +
+  scale_y_continuous(breaks = seq(-10, 10, by = 1))
+```
+
+
+```{r}
+team_npr |>
+  ggplot(aes(off_npr, def_npr)) +
+  geom_point(aes(col = team), shape = "square", size = 4, show.legend = F) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = team_hex) +
+  scale_x_continuous(breaks = seq(-10, 10, by = 1)) +
+  scale_y_continuous(breaks = seq(-10, 10, by = 1)) +
+  labs(x = "Offensive NPR", y = "Defensive NPR",
+       title = "Scatterplot of Offensive/Defensive NPR")
+```
+
+
+```{r message = F, warning = F}
+team_npr_epa = team_npr |>
+  select(team, off_npr, def_npr) |>
+  inner_join(team_epa, by = "team")
+
+home_npr_epa = team_npr_epa |>
+  setNames(paste0("home_", colnames(team_npr_epa)))
+
+away_npr_epa = team_npr_epa |>
+  setNames(paste0("away_", colnames(team_npr_epa)))
+
+mod_data = end_games |>
+  inner_join(home_npr_epa, by = "home_team") |>
+  inner_join(away_npr_epa, by = "away_team") |>
+  mutate(home_win = as.factor(ifelse(win_team == home_team, 1, 0))) |>
+  select(home_off_npr:home_win)
+
+home_win_model = glm(home_win ~ ., data = mod_data, family = "binomial")
+
+get_matchup_data = function(home_tm, away_tm) {
+  data = data.frame(home_team = home_tm, away_team = away_tm) |>
+    inner_join(home_npr_epa, by = "home_team") |>
+    inner_join(away_npr_epa, by = "away_team") |>
+    select(-c(home_team, away_team))
+  
+  return(data)
+}
+
+this_week_data = nflfastR::fast_scraper_schedules(season = 2024) |>
+  filter(week == max(end_games$week)) |>
+  select(home_team, away_team) |>
+  inner_join(home_npr_epa, by = "home_team") |>
+  inner_join(away_npr_epa, by = "away_team")
+
+this_week_probs = predict(home_win_model, this_week_data, type = "response")
+
+this_week_picks = this_week_data |>
+  mutate(prob = this_week_probs,
+         pred_home_win = ifelse(prob >= 0.5, 1, 0),
+         pred_win_team = ifelse(pred_home_win == 1, home_team, away_team),
+         pred_lose_team = ifelse(pred_home_win == 1, away_team, home_team),
+         desc = as.character(glue::glue("{pred_win_team} def. {pred_lose_team}")))
+
+for (pick in this_week_picks$desc) {
+  print(pick)
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
