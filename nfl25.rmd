@@ -17,6 +17,7 @@ library(tidymodels)
 library(tvthemes)
 library(janitor)
 library(zoo)
+library(glue)
 library(nflfastR)
 library(patchwork)
 
@@ -162,8 +163,8 @@ team_epa = inner_join(off_epa, def_epa, by = "team")
 team_epa |>
   ggplot(aes(avg_off_epa, avg_def_epa)) +
   geom_point(aes(col = team), shape = "square", size = 4, show.legend = F) +
-  geom_vline(xintercept = mean(team_epa$avg_off_epa), linetype = "dashed", alpha = 0.5) +
-  geom_hline(yintercept = mean(team_epa$avg_def_epa), linetype = "dashed", alpha = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
   scale_color_manual(values = team_hex) +
   ggrepel::geom_text_repel(aes(label = team), size = 3) +
   scale_x_continuous(breaks = seq(-0.5, 0.5, by = 0.05)) +
@@ -202,7 +203,7 @@ team_epa_classes = team_epa |>
                            avg_off_epa < 0 & avg_def_epa < 0 ~ "Bad Offense, Good Defense"))
 
 descs = nflfastR::fast_scraper_schedules(season = 2024) |>
-  filter(week >= max(end_games$week)) |>
+  filter(week > max(end_games$week)) |>
   slice_min(week, n = 1, with_ties = T) |>
   inner_join(team_epa_classes, by = c("home_team" = "team")) |>
   rename(home_class = class) |>
@@ -394,8 +395,14 @@ get_matchup_data = function(home_tm, away_tm) {
   return(data)
 }
 
+if (weekdays(Sys.Date()) %in% c("Friday", "Saturday", "Sunday", "Monday")) {
+  this_week_num = max(end_games$week)
+} else {
+  this_week_num = max(end_games$week) + 1
+}
+
 this_week_data = nflfastR::fast_scraper_schedules(season = 2024) |>
-  filter(week == max(end_games$week)) |>
+  filter(week == this_week_num) |>
   select(home_team, away_team) |>
   inner_join(home_npr_epa, by = "home_team") |>
   inner_join(away_npr_epa, by = "away_team")
@@ -407,11 +414,157 @@ this_week_picks = this_week_data |>
          pred_home_win = ifelse(prob >= 0.5, 1, 0),
          pred_win_team = ifelse(pred_home_win == 1, home_team, away_team),
          pred_lose_team = ifelse(pred_home_win == 1, away_team, home_team),
-         desc = as.character(glue::glue("{pred_win_team} def. {pred_lose_team}")))
+         conf_raw = ifelse(prob >= 0.5, prob, 1 - prob),
+         conf = paste0(round(conf_raw * 100, 1), "%"),
+         desc = as.character(glue::glue("{pred_win_team} def. {pred_lose_team} ({conf})"))) |>
+  arrange(desc(conf_raw))
 
 for (pick in this_week_picks$desc) {
   print(pick)
 }
+```
+
+
+```{r}
+season_pbp |>
+  filter(play_type == "pass") |>
+  group_by(passer, week) |>
+  summarise(n = n(),
+            avg_epa = mean(epa, na.rm = T),
+            .groups = "drop") |>
+  filter(week == max(end_games$week) & n >= 5) |>
+  arrange(desc(avg_epa)) |>
+  mutate(avg_epa = round(avg_epa, 3),
+         passer = as.character(glue::glue("{passer} ({round(avg_epa, 2)})"))) |>
+  ggplot(aes(reorder(passer, avg_epa), avg_epa)) +
+  geom_col(aes(fill = avg_epa), show.legend = F) +
+  coord_flip() +
+  scale_fill_gradient(low = "indianred3", high = "springgreen4") +
+  labs(x = NULL, y = "Avg. EPA",
+       title = "Avg. EPA by QBs this past week") +
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.1))
+```
+
+```{r}
+team_pass_run_share = season_pbp |>
+  filter(play_type %in% c("pass", "run")) |>
+  group_by(team = posteam) |>
+  count(play_type) |>
+  mutate(pct = round(n / sum(n), 3)) |>
+  ungroup()
+
+run_heavy = team_pass_run_share |>
+  filter(play_type == "run") |>
+  arrange(desc(pct)) |>
+  pull(team)
+
+team_pass_run_share |>
+  mutate(team = factor(team, levels = rev(run_heavy)),
+         play_type = ifelse(play_type == "pass", "Pass", "Run")) |>
+  ggplot(aes(team, pct)) +
+  geom_col(aes(fill = play_type)) +
+  coord_flip() +
+  labs(x = NULL, y = "Rushing Share", fill = NULL,
+       title = "Run the damn ball!") +
+  scale_fill_manual(values = c("lightsteelblue3", "springgreen4")) +
+  theme(legend.position = "right") +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.1), labels = scales::percent)
+```
+
+```{r}
+team_run_shares_vec = team_pass_run_share |>
+  filter(play_type == "run") |>
+  arrange(team) |>
+  pull(pct)
+
+team_off_ypg_vec = team_ypg |>
+  arrange(team) |>
+  pull(off_ypg)
+
+cor_coef = round(cor(team_run_shares_vec, team_off_ypg_vec), 3)
+
+team_pass_run_share |>
+  filter(play_type == "run") |>
+  select(team, run_pct = pct) |>
+  inner_join(team_ypg |>
+  select(team, off_ypg), by = "team") |>
+  ggplot(aes(run_pct, off_ypg)) +
+  geom_point(aes(col = team), size = 4, shape = "square", show.legend = F) +
+  geom_line(stat = "smooth", formula = y ~ x, method = "lm", linetype = "dashed", alpha = 0.5) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3) +
+  scale_color_manual(values = team_hex) +
+  labs(x = "Rushing share", y = "Offensive YPG",
+       title = "Does running the damn ball work?",
+       subtitle = glue("Correlation: {cor_coef}")) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.05), labels = scales::percent) +
+  scale_y_continuous(breaks = seq(200, 500, by = 25))
+```
+
+```{r}
+season_pbp |>
+  filter(play_type %in% c("pass", "run")) |>
+  group_by(team = posteam, play_type) |>
+  summarise(epa = mean(epa, na.rm = T),
+            .groups = "drop") |>
+  pivot_wider(id_cols = team, names_from = "play_type", values_from = "epa") |>
+  ggplot(aes(run, pass)) +
+  geom_point(aes(col = team), size = 4, shape = "square", show.legend = F) +
+  scale_color_manual(values = team_hex) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3, max.overlaps = 32) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5)
+
+season_pbp |>
+  filter(play_type %in% c("pass", "run")) |>
+  group_by(team = defteam, play_type) |>
+  summarise(epa = mean(epa, na.rm = T),
+            .groups = "drop") |>
+  pivot_wider(id_cols = team, names_from = "play_type", values_from = "epa") |>
+  ggplot(aes(run, pass)) +
+  geom_point(aes(col = team), size = 4, shape = "square", show.legend = F) +
+  scale_color_manual(values = team_hex) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3, max.overlaps = 32) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5)
+```
+
+
+
+
+
+```{r}
+season_pbp |>
+  filter(play_type %in% c("pass", "run")) |>
+  group_by(team = posteam) |>
+  summarise(off_epa = mean(epa, na.rm = T)) |>
+  inner_join(season_pbp |>
+  filter(play_type %in% c("pass", "run")) |>
+  group_by(team = defteam) |>
+  summarise(def_epa = mean(epa, na.rm = T)), by = "team") |>
+  mutate(ovr_epa = off_epa + def_epa) |>
+  arrange(desc(ovr_epa))
+```
+
+
+
+```{r}
+season_pbp |>
+  filter(week >= 4) |>
+  filter(play_type == "pass") |>
+  group_by(passer) |>
+  summarise(n = n(),
+            epa_per_db = mean(epa, na.rm = T)) |>
+  mutate(n_pct = percent_rank(n)) |>
+  filter(n_pct >= 0.5) |>
+  ggplot(aes(n, epa_per_db)) +
+  geom_point() +
+  ggrepel::geom_text_repel(aes(label = passer), size = 3, max.overlaps = 50) +
+  labs(x = "Number of dropbacks",
+       y = "EPA per dropback",
+       title = "EPA per dropback",
+       subtitle = "Weeks 4-6 / Only QBs in 50th percentile of higher in dropbacks") +
+  scale_x_continuous(breaks = seq(0, 1000, by = 10)) +
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.1))
 ```
 
 
@@ -421,20 +574,138 @@ for (pick in this_week_picks$desc) {
 
 
 
+```{r}
+season_pbp |>
+  filter(play_type == "pass" & week >= 4) |>
+  group_by(passer) |>
+  summarise(n = n(),
+            success_rate = round(mean(success, na.rm = T), 3)) |>
+  mutate(n_pct = percent_rank(n)) |>
+  filter(n_pct >= 0.5) |>
+  arrange(desc(success_rate))
+```
 
 
 
+```{r}
+team_logos = teams_colors_logos |>
+  filter(team_abbr %in% all_teams) |>
+  select(team_abbr, team_logo_espn)
+
+# team success rate by down (passing and running plays)
+pass_epa_success = season_pbp |>
+  filter(play_type == "pass") |>
+  group_by(posteam, play_type) |>
+  summarise(avg_epa = mean(epa),
+            success_rate = mean(success),
+            .groups = "drop")
+
+opesp = pass_epa_success |>
+  ggplot(aes(avg_epa, success_rate)) +
+  geom_point(aes(col = posteam), shape = "square", size = 4, show.legend = F) +
+  ggrepel::geom_text_repel(aes(label = posteam), size = 3, max.overlaps = 32) +
+  scale_color_manual(values = team_hex) +
+  geom_line(stat = "smooth", method = "lm", formula = y ~ x, linetype = "dotted", alpha = 0.25) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(pass_epa_success$success_rate), linetype = "dashed", alpha = 0.5) +
+  labs(x = "Offensive EPA per play, passing",
+       y = "Offensive success rate, passing",
+       title = "Offensive EPA per play vs. success rate by team (passing)") +
+  scale_x_continuous(breaks = seq(-0.5, 0.5, by = 0.05)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.05), labels = scales::percent)
+
+rush_epa_success = season_pbp |>
+  filter(play_type == "run") |>
+  group_by(posteam, play_type) |>
+  summarise(avg_epa = mean(epa),
+            success_rate = mean(success),
+            .groups = "drop")
+
+oresp = rush_epa_success |>
+  ggplot(aes(avg_epa, success_rate)) +
+  geom_point(aes(col = posteam), shape = "square", size = 4, show.legend = F) +
+  ggrepel::geom_text_repel(aes(label = posteam), size = 3, max.overlaps = 32) +
+  scale_color_manual(values = team_hex) +
+  geom_line(stat = "smooth", method = "lm", formula = y ~ x, linetype = "dotted", alpha = 0.25) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(rush_epa_success$success_rate), linetype = "dashed", alpha = 0.5) +
+  labs(x = "Offensive EPA per play, rushing",
+       y = "Offensive success rate, rushing",
+       title = "Offensive EPA per play vs. success rate by team (rushing)") +
+  scale_x_continuous(breaks = seq(-0.5, 0.5, by = 0.05)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.05), labels = scales::percent)
+
+pass_epa_success = season_pbp |>
+  filter(play_type == "pass") |>
+  group_by(defteam, play_type) |>
+  summarise(avg_epa = mean(epa),
+            success_rate = mean(success),
+            .groups = "drop")
+
+dpesp = pass_epa_success |>
+  ggplot(aes(avg_epa, success_rate)) +
+  geom_point(aes(col = defteam), shape = "square", size = 4, show.legend = F) +
+  ggrepel::geom_text_repel(aes(label = defteam), size = 3, max.overlaps = 32) +
+  scale_color_manual(values = team_hex) +
+  geom_line(stat = "smooth", method = "lm", formula = y ~ x, linetype = "dotted", alpha = 0.25) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(pass_epa_success$success_rate), linetype = "dashed", alpha = 0.5) +
+  labs(x = "Defensive EPA per play, passing",
+       y = "Defensive success rate, passing",
+       title = "Defensive EPA per play vs. success rate by team (passing)") +
+  scale_x_continuous(breaks = seq(-0.5, 0.5, by = 0.05)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.05), labels = scales::percent)
+
+rush_epa_success = season_pbp |>
+  filter(play_type == "run") |>
+  group_by(defteam, play_type) |>
+  summarise(avg_epa = mean(epa),
+            success_rate = mean(success),
+            .groups = "drop")
+
+dresp = rush_epa_success |>
+  ggplot(aes(avg_epa, success_rate)) +
+  geom_point(aes(col = defteam), shape = "square", size = 4, show.legend = F) +
+  ggrepel::geom_text_repel(aes(label = defteam), size = 3, max.overlaps = 32) +
+  scale_color_manual(values = team_hex) +
+  geom_line(stat = "smooth", method = "lm", formula = y ~ x, linetype = "dotted", alpha = 0.25) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = mean(rush_epa_success$success_rate), linetype = "dashed", alpha = 0.5) +
+  labs(x = "Defensive EPA per play, rushing",
+       y = "Defensive success rate, rushing",
+       title = "Defensive EPA per play vs. success rate by team (rushing)") +
+  scale_x_continuous(breaks = seq(-0.5, 0.5, by = 0.05)) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.05), labels = scales::percent)
+
+opesp
+oresp
+dpesp
+dresp
+```
 
 
+```{r}
+suppressMessages(library(ggimage))
 
+team_logos = teams_colors_logos |>
+  filter(team_abbr %in% all_teams) |>
+  select(team = team_abbr, team_logo_wikipedia)
 
+team_epa_with_logos = team_epa |>
+  inner_join(team_logos, by = "team")
 
-
-
-
-
-
-
+team_epa_with_logos |>
+  ggplot(aes(avg_off_epa, avg_def_epa)) +
+  geom_image(aes(image = team_logo_wikipedia), size = 0.1) +
+  geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  scale_color_manual(values = team_hex) +
+  labs(x = "Avg. Offensive EPA",
+       y = "Avg. Defensive EPA",
+       title = "Offensive and Defensive EPA") +
+  scale_x_continuous(breaks = seq(-1, 1, by = 0.05)) +
+  scale_y_continuous(breaks = seq(-1, 1, by = 0.05))
+```
 
 
 
