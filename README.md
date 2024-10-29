@@ -27,22 +27,21 @@
 
 ### Offense and Defense EPA Comparisons
 
-    ## [1] "LA vs. MIN: Bad Offense, Bad Defense vs. Good Offense, Good Defense"
-    ## [1] "CIN vs. PHI: Good Offense, Bad Defense vs. Good Offense, Good Defense"
-    ## [1] "CLE vs. BAL: Bad Offense, Good Defense vs. Good Offense, Bad Defense"
-    ## [1] "DET vs. TEN: Good Offense, Good Defense vs. Bad Offense, Good Defense"
-    ## [1] "HOU vs. IND: Good Offense, Good Defense vs. Bad Offense, Good Defense"
-    ## [1] "JAX vs. GB: Good Offense, Bad Defense vs. Good Offense, Good Defense"
-    ## [1] "MIA vs. ARI: Bad Offense, Good Defense vs. Good Offense, Bad Defense"
-    ## [1] "NE vs. NYJ: Bad Offense, Bad Defense vs. Bad Offense, Good Defense"
-    ## [1] "TB vs. ATL: Good Offense, Bad Defense vs. Good Offense, Bad Defense"
-    ## [1] "LAC vs. NO: Bad Offense, Good Defense vs. Bad Offense, Good Defense"
-    ## [1] "SEA vs. BUF: Good Offense, Good Defense vs. Good Offense, Good Defense"
-    ## [1] "DEN vs. CAR: Bad Offense, Good Defense vs. Bad Offense, Bad Defense"
-    ## [1] "LV vs. KC: Bad Offense, Good Defense vs. Good Offense, Good Defense"
-    ## [1] "WAS vs. CHI: Good Offense, Bad Defense vs. Bad Offense, Good Defense"
-    ## [1] "SF vs. DAL: Good Offense, Good Defense vs. Bad Offense, Bad Defense"
-    ## [1] "PIT vs. NYG: Good Offense, Good Defense vs. Bad Offense, Bad Defense"
+    ## [1] "NYJ vs. HOU: Bad Offense, Good Defense vs. Good Offense, Good Defense"
+    ## [1] "ATL vs. DAL: Good Offense, Bad Defense vs. Bad Offense, Bad Defense"
+    ## [1] "BAL vs. DEN: Good Offense, Bad Defense vs. Bad Offense, Good Defense"
+    ## [1] "BUF vs. MIA: Good Offense, Good Defense vs. Bad Offense, Good Defense"
+    ## [1] "CAR vs. NO: Bad Offense, Bad Defense vs. Bad Offense, Good Defense"
+    ## [1] "CIN vs. LV: Good Offense, Bad Defense vs. Bad Offense, Good Defense"
+    ## [1] "CLE vs. LAC: Bad Offense, Good Defense vs. Bad Offense, Good Defense"
+    ## [1] "NYG vs. WAS: Bad Offense, Bad Defense vs. Good Offense, Bad Defense"
+    ## [1] "TEN vs. NE: Bad Offense, Bad Defense vs. Bad Offense, Bad Defense"
+    ## [1] "ARI vs. CHI: Good Offense, Bad Defense vs. Bad Offense, Good Defense"
+    ## [1] "PHI vs. JAX: Good Offense, Good Defense vs. Good Offense, Bad Defense"
+    ## [1] "GB vs. DET: Good Offense, Good Defense vs. Good Offense, Good Defense"
+    ## [1] "SEA vs. LA: Bad Offense, Bad Defense vs. Bad Offense, Bad Defense"
+    ## [1] "MIN vs. IND: Good Offense, Good Defense vs. Bad Offense, Good Defense"
+    ## [1] "KC vs. TB: Good Offense, Good Defense vs. Good Offense, Bad Defense"
 
 ------------------------------------------------------------------------
 
@@ -68,22 +67,21 @@
 
 ### Week Predictions
 
-    ## [1] "KC def. LV (99.1%)"
-    ## [1] "ARI def. MIA (98.4%)"
-    ## [1] "BAL def. CLE (98.2%)"
-    ## [1] "NYJ def. NE (96.7%)"
-    ## [1] "DEN def. CAR (96.7%)"
-    ## [1] "MIN def. LA (95.3%)"
-    ## [1] "DET def. TEN (93.5%)"
-    ## [1] "WAS def. CHI (93%)"
-    ## [1] "GB def. JAX (89.2%)"
-    ## [1] "PIT def. NYG (84.5%)"
-    ## [1] "SF def. DAL (76.9%)"
-    ## [1] "LAC def. NO (74.8%)"
-    ## [1] "TB def. ATL (74.2%)"
-    ## [1] "PHI def. CIN (57.3%)"
-    ## [1] "HOU def. IND (54.5%)"
-    ## [1] "BUF def. SEA (53.2%)"
+    ## [1] "BUF def. MIA (98.2%)"
+    ## [1] "NO def. CAR (97.3%)"
+    ## [1] "PHI def. JAX (92.6%)"
+    ## [1] "LAC def. CLE (86.1%)"
+    ## [1] "MIN def. IND (82.4%)"
+    ## [1] "WAS def. NYG (79.5%)"
+    ## [1] "CIN def. LV (72.6%)"
+    ## [1] "HOU def. NYJ (72.3%)"
+    ## [1] "LA def. SEA (68.8%)"
+    ## [1] "ATL def. DAL (68.5%)"
+    ## [1] "DET def. GB (67.6%)"
+    ## [1] "BAL def. DEN (61.1%)"
+    ## [1] "NE def. TEN (60.3%)"
+    ## [1] "ARI def. CHI (59.2%)"
+    ## [1] "KC def. TB (53.3%)"
 
 ``` r
 season_pbp |>
@@ -214,18 +212,18 @@ season_pbp |>
 ```
 
     ## # A tibble: 32 × 4
-    ##    team   off_epa  def_epa ovr_epa
-    ##    <chr>    <dbl>    <dbl>   <dbl>
-    ##  1 BAL    0.230    0.0598   0.289 
-    ##  2 WAS    0.237    0.0283   0.265 
-    ##  3 JAX    0.00835  0.179    0.188 
-    ##  4 CIN    0.0919   0.0501   0.142 
-    ##  5 ARI    0.0243   0.115    0.139 
-    ##  6 TB     0.0912   0.0428   0.134 
-    ##  7 BUF    0.177   -0.0544   0.122 
-    ##  8 ATL    0.0389   0.0487   0.0876
-    ##  9 PHI    0.0784  -0.00173  0.0767
-    ## 10 DAL   -0.0877   0.139    0.0508
+    ##    team  off_epa  def_epa ovr_epa
+    ##    <chr>   <dbl>    <dbl>   <dbl>
+    ##  1 BAL    0.214   0.0693   0.283 
+    ##  2 WAS    0.214   0.00718  0.221 
+    ##  3 JAX    0.0148  0.170    0.185 
+    ##  4 ARI    0.0586  0.125    0.183 
+    ##  5 CIN    0.0803  0.0823   0.163 
+    ##  6 TB     0.0907  0.0681   0.159 
+    ##  7 BUF    0.197  -0.0690   0.128 
+    ##  8 ATL    0.0662  0.0541   0.120 
+    ##  9 PHI    0.113  -0.00162  0.111 
+    ## 10 DAL   -0.0786  0.155    0.0765
     ## # ℹ 22 more rows
 
 ``` r
@@ -261,20 +259,20 @@ season_pbp |>
   arrange(desc(success_rate))
 ```
 
-    ## # A tibble: 30 × 4
+    ## # A tibble: 33 × 4
     ##    passer         n success_rate n_pct
     ##    <chr>      <int>        <dbl> <dbl>
-    ##  1 L.Jackson    114        0.596 0.729
-    ##  2 J.Goff        77        0.571 0.508
-    ##  3 P.Mahomes    102        0.529 0.661
-    ##  4 C.Williams    89        0.528 0.593
-    ##  5 B.Mayfield   162        0.525 0.949
-    ##  6 J.Burrow     133        0.504 0.881
-    ##  7 T.Lawrence   128        0.5   0.864
-    ##  8 M.Stafford   105        0.495 0.678
-    ##  9 J.Daniels     99        0.475 0.644
-    ## 10 G.Smith      188        0.468 1    
-    ## # ℹ 20 more rows
+    ##  1 L.Jackson    153        0.569 0.815
+    ##  2 J.Goff        96        0.552 0.554
+    ##  3 P.Mahomes    140        0.55  0.754
+    ##  4 B.Mayfield   211        0.521 0.969
+    ##  5 M.Stafford   139        0.518 0.723
+    ##  6 T.Lawrence   161        0.516 0.877
+    ##  7 J.Burrow     171        0.503 0.892
+    ##  8 K.Murray     151        0.49  0.8  
+    ##  9 C.Williams   116        0.483 0.662
+    ## 10 J.Daniels    139        0.482 0.723
+    ## # ℹ 23 more rows
 
 ``` r
 team_logos = teams_colors_logos |>
@@ -417,3 +415,93 @@ team_epa_with_logos |>
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+``` r
+off_qtr_epa_success = season_pbp |>
+  filter(play_type %in% c("pass", "run") & qtr %in% 1:4) |>
+  group_by(team = posteam, qtr) |>
+  summarise(avg_epa = mean(epa, na.rm = T),
+            success_rate = mean(success, na.rm = T),
+            .groups = "drop")
+
+def_qtr_epa_success = season_pbp |>
+  filter(play_type %in% c("pass", "run") & qtr %in% 1:4) |>
+  group_by(team = defteam, qtr) |>
+  summarise(avg_epa = mean(epa, na.rm = T),
+            success_rate = mean(success, na.rm = T),
+            .groups = "drop")
+
+off_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_max(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, avg_epa), avg_epa)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "EPA per play")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+``` r
+off_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_max(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, success_rate), success_rate)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "Offensive success rate")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-21-2.png)<!-- -->
+
+``` r
+def_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_min(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, avg_epa), avg_epa)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "EPA per play")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-21-3.png)<!-- -->
+
+``` r
+def_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_min(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, success_rate), success_rate)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "EPA per play")
+```
+
+![](README_files/figure-gfm/unnamed-chunk-21-4.png)<!-- -->

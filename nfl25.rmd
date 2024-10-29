@@ -708,6 +708,81 @@ team_epa_with_logos |>
 ```
 
 
+```{r}
+off_qtr_epa_success = season_pbp |>
+  filter(play_type %in% c("pass", "run") & qtr %in% 1:4) |>
+  group_by(team = posteam, qtr) |>
+  summarise(avg_epa = mean(epa, na.rm = T),
+            success_rate = mean(success, na.rm = T),
+            .groups = "drop")
+
+def_qtr_epa_success = season_pbp |>
+  filter(play_type %in% c("pass", "run") & qtr %in% 1:4) |>
+  group_by(team = defteam, qtr) |>
+  summarise(avg_epa = mean(epa, na.rm = T),
+            success_rate = mean(success, na.rm = T),
+            .groups = "drop")
+
+off_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_max(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, avg_epa), avg_epa)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "EPA per play")
+
+off_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_max(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, success_rate), success_rate)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "Offensive success rate")
+
+def_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_min(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, avg_epa), avg_epa)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "EPA per play")
+
+def_qtr_epa_success |>
+  mutate(qtr = case_when(qtr == 1 ~ "1st Quarter",
+                         qtr == 2 ~ "2nd Quarter",
+                         qtr == 3 ~ "3rd Quarter",
+                         qtr == 4 ~ "4th Quarter")) |>
+  group_by(qtr) |>
+  slice_min(avg_epa, n = 3, with_ties = F) |>
+  ungroup() |>
+  ggplot(aes(reorder(team, success_rate), success_rate)) +
+  geom_col(aes(fill = team), show.legend = F) +
+  coord_flip() +
+  scale_fill_manual(values = team_hex) +
+  facet_wrap(vars(qtr), scales = "free_y") +
+  labs(x = NULL, y = "EPA per play")
+```
 
 
 
